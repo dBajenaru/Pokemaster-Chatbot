@@ -1,11 +1,8 @@
 """
-Pokémon TCG chatbot using Azure OpenAI with tool use capabilities.
+Chatbot using Azure OpenAI.
 
-This module implements a conversational agent that can answer questions
-about Pokémon TCG cards, sets, and related information by calling
-external API tools.
+This module implements a conversational agent.
 """
-import json
 import os
 import sys
 from pathlib import Path
@@ -14,7 +11,6 @@ from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI
 
-from tcg_api import get_card_info, get_sets, get_most_recent_set
 
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -42,65 +38,6 @@ client = OpenAI(
 )
 
 
-def _get_tools():
-    """Define tool functions available to the chat model.
-
-    Returns:
-        list: List of tool definitions in OpenAI format.
-    """
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_card_info",
-                "description": (
-                    "Get detailed information about a specific "
-                    "Pokémon TCG card by name"
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "card_name": {
-                            "type": "string",
-                            "description": (
-                                "The exact name of the Pokémon card "
-                                "(e.g., 'Pikachu')"
-                            ),
-                        }
-                    },
-                    "required": ["card_name"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_sets",
-                "description": (
-                    "Get a list of all Pokémon TCG expansion sets "
-                    "with release dates"
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_most_recent_set",
-                "description": "Get the most recent Pokémon TCG expansion set",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
-            },
-        },
-    ]
-
 def get_next_user_input():
     """Get the next user input from stdin or interactive prompt.
 
@@ -120,72 +57,21 @@ def get_next_user_input():
     return line.rstrip("\n")
 
 
-def _execute_tool_call(function_name, arguments):
-    """Execute a tool function and return the result.
 
-    Args:
-        function_name (str): Name of the tool function to execute.
-        arguments (dict): Arguments to pass to the tool function.
-
-    Returns:
-        str: JSON-formatted result from the tool or error message.
-    """
-    if function_name == "get_card_info":
-        return get_card_info(arguments["card_name"])
-    elif function_name == "get_sets":
-        return get_sets()
-    elif function_name == "get_most_recent_set":
-        return get_most_recent_set()
-    else:
-        return "Unknown tool"
-
-
-def _process_response(response, messages, tools):
-    """Process model response and handle tool calls if present.
+def _process_response(response):
+    """Process model response.
 
     Args:
         response: The OpenAI chat completion response object.
-        messages (list): Conversation message history.
-        tools (list): Available tool definitions.
 
     Returns:
         str: The final bot response text.
     """
-    # Check for tool calls
-    if (hasattr(response.choices[0].message, "tool_calls") and
-            response.choices[0].message.tool_calls):
-        tool_calls = response.choices[0].message.tool_calls
-        messages.append({
-            "role": "assistant",
-            "content": None,
-            "tool_calls": tool_calls,
-        })
-
-        for tool_call in tool_calls:
-            function_name = tool_call.function.name
-            arguments = json.loads(tool_call.function.arguments)
-
-            result = _execute_tool_call(function_name, arguments)
-
-            messages.append({
-                "role": "tool",
-                "content": result,
-                "tool_call_id": tool_call.id,
-            })
-
-        # Get final response after tool use
-        response = client.chat.completions.create(
-            model=deployment_name,
-            messages=messages,
-            max_tokens=500,
-        )
-
     return response.choices[0].message.content
 
 
 def main():
-    """Run the Pokémon TCG chatbot main loop."""
-    tools = _get_tools()
+    """Run the chatbot main loop."""
     messages = []
 
     while True:
@@ -207,11 +93,10 @@ def main():
         response = client.chat.completions.create(
             model=deployment_name,
             messages=messages,
-            tools=tools,
             max_tokens=500,
         )
 
-        bot_response = _process_response(response, messages, tools)
+        bot_response = _process_response(response)
         messages.append({"role": "assistant", "content": bot_response})
 
         print("Bot:", bot_response, "\n")
