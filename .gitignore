@@ -3,3 +3,4 @@ poke/
 credentials.txt
 src/__pycache__/
 tests/output.txt
+chroma_db/
