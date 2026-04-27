@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI
 
-from chroma_tool import CHROMA_SEARCH_TOOL, execute_tool
+from chroma_db.chroma_tool import CHROMA_SEARCH_TOOL, execute_tool
+
 
 
 env_path = Path(__file__).resolve().parents[1] / ".env"
@@ -87,6 +88,69 @@ def process_tool_calls(tool_calls):
     return tool_messages
 
 
+def run_agent_turn(client, deployment_name, messages, tools, max_steps=5):
+    for _ in range(max_steps):
+        response = client.chat.completions.create(
+            model=deployment_name,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            max_tokens=1000,
+        )
+
+        choice = response.choices[0]
+        message = choice.message
+
+        print("[DEBUG] finish_reason:", choice.finish_reason)
+        print("[DEBUG] content:", repr(message.content))
+        print("[DEBUG] tool_calls:", message.tool_calls)
+
+        # If model wants tools, execute them and continue loop
+        if message.tool_calls:
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in message.tool_calls
+                ],
+            })
+
+            for tool_call in message.tool_calls:
+                function_name = tool_call.function.name
+                arguments = json.loads(tool_call.function.arguments)
+
+                print(f"[Tool] Calling {function_name} with: {arguments}")
+                result = execute_tool(function_name, arguments)
+                print(f"[Tool] Raw result: {json.dumps(result, indent=2)}")
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result),
+                })
+
+            continue
+
+        # Final natural-language answer
+        final_text = (message.content or "").strip()
+        if final_text:
+            messages.append({"role": "assistant", "content": final_text})
+            return final_text
+
+        # No tool calls and no text -> fail visibly
+        return "I queried the tools, but the model returned an empty response."
+
+    return "I could not finish the request within the allowed tool-call steps."
+
+
 def main():
     """Run the chatbot main loop with tool support."""
     messages = []
@@ -156,7 +220,13 @@ def main():
             response_message = response.choices[0].message
         
         # Add final assistant response to history
-        bot_response = response_message.content
+        # bot_response = response_message.content                       previous bot_response
+        bot_response = run_agent_turn(
+            client=client,
+            deployment_name=deployment_name,
+            messages=messages,
+            tools=tools
+        )
         messages.append({"role": "assistant", "content": bot_response})
 
         print("Bot:", bot_response, "\n")

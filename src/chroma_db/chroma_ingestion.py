@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def chunk_text(text, chunk_size=1200, overlap=200):
+def chunk_text(text, chunk_size=120, overlap=20):
     chunks = []
     start = 0
     while start < len(text):
