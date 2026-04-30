@@ -67,7 +67,7 @@ export default function App() {
     setLoading(true);
 
     try {
-      const answer = await sendChatQuestion(currentQuestion);
+      const answer = await sendChatQuestion(activeChat.id, currentQuestion);
 
       updateActiveChat((chat) => ({
         ...chat,
