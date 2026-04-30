@@ -1,10 +1,8 @@
 poke/
 .env
 credentials.txt
-src/__pycache__/
-tests/output.txt
+*__pycache__/
+tests/
 ./chroma_db/
-git_log.txt
 developers_notes.md
-None/
-chroma_db/
+*.swp
