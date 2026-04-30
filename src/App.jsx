@@ -1,69 +1,133 @@
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import './App.css';
+import Sidebar from './components/Sidebar';
+import ChatWindow from './components/ChatWindow';
+import Composer from './components/Composer';
+import { createChat } from './data/createChat';
+import { sendChatQuestion } from './services/chatApi';
 
 export default function App() {
+  const [chats, setChats] = useState([createChat()]);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const activeChat = useMemo(() => {
+    const currentId = activeChatId ?? chats[0]?.id;
+    return chats.find((chat) => chat.id === currentId) ?? chats[0];
+  }, [chats, activeChatId]);
+
+  useEffect(() => {
+    if (!activeChatId && chats[0]) {
+      setActiveChatId(chats[0].id);
+    }
+  }, [activeChatId, chats]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeChat?.messages, loading]);
+
+  function handleNewChat() {
+    const newChat = createChat();
+    setChats((prev) => [newChat, ...prev]);
+    setActiveChatId(newChat.id);
+    setQuestion('');
+  }
+
+  function updateActiveChat(updater) {
+    setChats((prev) =>
+      prev.map((chat) => (chat.id === activeChat.id ? updater(chat) : chat))
+    );
+  }
 
   async function handleAsk() {
-    if (!question.trim()) return;
+    if (!question.trim() || !activeChat || loading) return;
 
+    const currentQuestion = question.trim();
+
+    const userMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: currentQuestion,
+    };
+
+    const chatTitle =
+      activeChat.messages.length === 0
+        ? currentQuestion.slice(0, 32)
+        : activeChat.title;
+
+    updateActiveChat((chat) => ({
+      ...chat,
+      title: chatTitle || 'New chat',
+      messages: [...chat.messages, userMessage],
+    }));
+
+    setQuestion('');
     setLoading(true);
-    setError('');
-    setAnswer('');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question }),
-      });
+      const answer = await sendChatQuestion(currentQuestion);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Request failed');
-      }
-
-      setAnswer(data.answer || '');
-    } catch (err) {
-      setError(err.message || 'Could not reach backend');
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: [
+          ...chat.messages,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: answer,
+          },
+        ],
+      }));
+    } catch (error) {
+      updateActiveChat((chat) => ({
+        ...chat,
+        messages: [
+          ...chat.messages,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: error.message || 'Could not reach backend.',
+          },
+        ],
+      }));
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <main style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <h1>Pokemaster</h1>
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAsk();
+    }
+  }
 
-      <textarea
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-        rows={5}
-        placeholder="Ask a Pokémon question..."
-        style={{ width: '100%', padding: '1rem' }}
+  return (
+    <div className="app-shell">
+      <Sidebar
+        chats={chats}
+        activeChatId={activeChat?.id}
+        onSelectChat={setActiveChatId}
+        onNewChat={handleNewChat}
       />
 
-      <button onClick={handleAsk} disabled={loading} style={{ marginTop: '1rem' }}>
-        {loading ? 'Thinking...' : 'Ask'}
-      </button>
+      <main className="main-panel">
+        <ChatWindow
+          activeChat={activeChat}
+          loading={loading}
+          messagesEndRef={messagesEndRef}
+        />
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Answer</h2>
-        <div className="markdown-body" style={{ textAlign: 'left' }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {answer}
-          </ReactMarkdown>
-        </div>
-      </section>
-    </main>
+        <Composer
+          question={question}
+          setQuestion={setQuestion}
+          onAsk={handleAsk}
+          onKeyDown={handleKeyDown}
+          loading={loading}
+        />
+      </main>
+    </div>
   );
 }
