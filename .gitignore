@@ -3,6 +3,6 @@ poke/
 credentials.txt
 *__pycache__/
 tests/
-./chroma_db/
+chroma_db/
 developers_notes.md
 *.swp
