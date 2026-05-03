@@ -3,29 +3,20 @@ Chatbot using Azure OpenAI.
 
 This module implements a conversational agent.
 """
-import os
 import sys
-from pathlib import Path
 
-from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI
 
 
-env_path = Path(__file__).resolve().parents[1] / ".env"
-load_dotenv(dotenv_path=env_path)
+from src.config import settings
 
-project_endpoint = os.getenv("AZURE_PROJECT_ENDPOINT")
-deployment_name = os.getenv("AZURE_DEPLOYMENT_NAME")
 
-if not project_endpoint or not deployment_name:
-    raise RuntimeError(
-        "Missing AZURE_PROJECT_ENDPOINT or AZURE_DEPLOYMENT_NAME "
-        "environment variable. Put them in .env or export them in "
-        "your shell."
-    )
-
+# imports
+project_endpoint = settings.AZURE_POJECT_ENDPOINT
+deployment_name = settings.AZURE_DEPLOYMENT_NAME
 base_url = project_endpoint.rstrip("/") + "/openai/v1"
+
 
 credential = DefaultAzureCredential()
 token_provider = get_bearer_token_provider(
