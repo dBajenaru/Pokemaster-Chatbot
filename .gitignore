@@ -1,0 +1,9 @@
+poke/
+.env
+credentials.txt
+*__pycache__/
+tests/
+chroma_db/
+developers_notes.md
+*.swp
+proj_structure.txt
