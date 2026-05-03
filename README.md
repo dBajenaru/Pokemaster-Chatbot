@@ -1,22 +1,27 @@
-# Notes on Files and Folders
- - `chroma_db/` is the vector database that stores all my agent's knowledge on pokemon. Currently not tracked as to not expose collected data.
- - `src/` is the folder holding all the python code.
- - `src/building_chroma_db/` is the folder where I'm holding all my files used in buiding my db.
- - `src/previous_chroma_attempts` : previous attempts to build a chromadb; I'm starting from scratch in `src/building_chroma_db` to not confuse myself with that was previously built. `./chroma_ingestion` is pretty clear. `./chroma_query is for asking chroma questions`. `./chroma_tools` defines a search tool to get knowledge from chroma db.
+# Pokemaster Chatbot
 
-# React + Vite
+This is a prototype project for personal learning.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## How to run
 
-Currently, two official plugins are available:
+This project has two components: `frontend/` and `backend/`. Both of these have servers that need to be started seperately. The simplest way to do this is to view them as serperate projects.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Linux
 
-## React Compiler
+Start both command blocks in the project root `pokemaster/`. For the backend, you will need to fill in the `.env` file with AZURE\_PROJECT\_ENDPOINT and AZURE\_DEPLOYMENT\_NAME. You will also need to create your own chromadb to have specialized knowledge.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Starting the backend:
+```{bash}
+cd backend
+touch .env
+source poke/bin/activate
+pip install requirements.txt
+python3 -m src.api.api
+```
 
-## Expanding the ESLint configuration
+Starting the frontend:
+```{bash}
+cd frontend
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

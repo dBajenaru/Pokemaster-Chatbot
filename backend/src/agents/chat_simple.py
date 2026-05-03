@@ -13,7 +13,7 @@ from src.config import settings
 
 
 # imports
-project_endpoint = settings.AZURE_POJECT_ENDPOINT
+project_endpoint = settings.AZURE_PROJECT_ENDPOINT
 deployment_name = settings.AZURE_DEPLOYMENT_NAME
 base_url = project_endpoint.rstrip("/") + "/openai/v1"
 
